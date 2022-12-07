@@ -54,11 +54,6 @@ async def weather(update: Update, context: ContextTypes):
     message += f"UV index: {int(current.get('uv', 'NA'))}\n"
     # add solar radiation
     message += f"Solar radiation: {current.get('solarRadiation', 'NA')} W/m²\n"
-
-    summery = wu.summary()
-    # write summery to file
-    with open('summery.txt', 'w') as f:
-        f.write(str(summery))
     
     await update.message.reply_text(message)
 
