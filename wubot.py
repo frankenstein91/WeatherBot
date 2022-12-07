@@ -9,6 +9,8 @@ import argparse
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from unit_converter.converter import convert, converts
+# import xml parser
+import xml.etree.ElementTree as ET
 
 # Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -60,6 +62,8 @@ async def weather(update: Update, context: ContextTypes):
     
     await update.message.reply_text(message)
 
+
+
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Wunderground bot')
@@ -73,6 +77,9 @@ def main():
     telegram_group = parser.add_argument_group('Telegram')
     telegram_group.add_argument('--telegram-api-key', dest='telegram_api_key', required=True,
                                 help='Telegram API key')
+    # path to XML user database
+    parser.add_argument('--user-db', dest='user_db', default='users.xml',
+                        help='Path to XML user database')
     
     # parse arguments
     args = parser.parse_args()
