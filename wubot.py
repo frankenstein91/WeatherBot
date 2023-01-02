@@ -11,6 +11,8 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from unit_converter.converter import convert, converts
 # import xml parser
 import xml.etree.ElementTree as ET
+import sqlite3
+from deep_translator import GoogleTranslator
 
 # Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -57,7 +59,36 @@ async def weather(update: Update, context: ContextTypes):
     
     await update.message.reply_text(message)
 
-
+async def setLanguage(update: Update, context: ContextTypes):
+    logging.info('setLanguage command received')
+    # get user id
+    user_id = update.message.from_user.id
+    # get language
+    language = update.message.text.split(' ')[1]
+    # check if two letter language code
+    if len(language) != 2:
+        await update.message.reply_text("Please use a two letter language code")
+        return
+    # get user from database
+    conn = sqlite3.connect(args.user_db)
+    c = conn.cursor()
+    c.execute('SELECT * FROM users WHERE user_id=?', (user_id,))
+    user = c.fetchone()
+    # if user exists
+    if user:
+        # update language
+        c.execute('UPDATE users SET language=? WHERE user_id=?', (language, user_id))
+        conn.commit()
+        logging.info(f'Language for user {user_id} updated to {language}')
+    else:
+        # insert user
+        c.execute('INSERT INTO users VALUES (?, ?)', (user_id, language))
+        conn.commit()
+        logging.info(f'User {user_id} inserted with language {language}')
+    # close connection
+    conn.close()
+    # reply to user
+    await update.message.reply_text(f"Language set to {language}")
 
 def main():
     # Parse command line arguments
@@ -72,11 +103,13 @@ def main():
     telegram_group = parser.add_argument_group('Telegram')
     telegram_group.add_argument('--telegram-api-key', dest='telegram_api_key', required=True,
                                 help='Telegram API key')
-    # path to XML user database
-    parser.add_argument('--user-db', dest='user_db', default='users.xml',
-                        help='Path to XML user database')
+    # path to SQLite user database
+    telegram_group.add_argument('--user-db', dest='user_db', required=True,
+                                help='Path to SQLite user database',
+                                default='users.db')
     
     # parse arguments
+    global args
     args = parser.parse_args()
     # conig wunderground api
     global wu
@@ -85,6 +118,14 @@ def main():
         default_station_id=args.wunderground_pws_id,
         units=units.METRIC_SI_UNITS,
         )
+    # create database file if not exists
+    conn = sqlite3.connect(args.user_db)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS users
+                    (user_id text, language text)''')
+    conn.commit()
+    conn.close()
+
     # config telegram bot
     logging.info('Starting build telegram bot')
     weather_bot = ApplicationBuilder().token(args.telegram_api_key).build()
